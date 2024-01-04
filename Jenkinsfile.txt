@@ -34,7 +34,7 @@ pipeline {
                     git url: 'https://github.com/socialboomer2023/webhook_cicd_s3.git', branch: 'main'
                     
                     // Use 'sh' to execute a shell command to find .py files
-                    def filesToUpload = sh(script: 'find . -name "*.py"', returnStdout: true).trim()
+                    def filesToUpload = sh(script: 'C:/path/to/find.exe . -name "*.py"', returnStdout: true).trim()
 
                     // Check if the files list is not empty
                     if (filesToUpload) {
