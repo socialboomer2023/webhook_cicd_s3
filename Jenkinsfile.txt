@@ -1,0 +1,86 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('GitHub Webhook Trigger') {
+            steps {
+                script {
+                    // Check if the webhookPayload variable is available
+                    if (env.webhookPayload) {
+                        echo "GitHub Webhook Payload: ${env.webhookPayload}"
+                        
+                        // Parse the JSON payload
+                        def payload = readJSON text: env.webhookPayload
+                        
+                        // Access specific information from the payload
+                        def repositoryName = payload.repository.name
+                        def branchName = payload.ref.split('/').last()
+
+                        echo "Repository Name: ${repositoryName}"
+                        echo "Branch Name: ${branchName}"
+
+                        // Your custom logic based on GitHub webhook data
+                        // For example, trigger specific actions based on branch or event type
+
+                        // Add your S3 upload logic here
+                        // Copy the relevant S3 upload steps from the second Jenkinsfile
+                        // ...
+
+                    } else {
+                        echo "No GitHub webhook payload found. This build might not be triggered by a webhook."
+                    }
+                }
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                git url: 'https://github.com/socialboomer2023/webhook_cicd_s3.git', branch: 'main'
+            }
+        }
+
+        stage("Upload to AWS") {
+            steps {
+                script {
+                    // Change to the root directory of the workspace (where the code is checked out)
+                    dir('.') {
+                        // Use 'dir' command to locate all .py files
+                        def filesList = bat(script: "dir /s /b *.py", returnStdout: true).trim()
+
+                        // Check if the output is not null
+                        if (filesList != null && filesList.trim() != '') {
+                            // Split the output into a list of files
+                            def filesToUpload = filesList.split('\n')
+
+                            // Print debugging information
+                            echo "Files to upload:"
+                            filesToUpload.each { file ->
+                                echo "- $file"
+                            }
+
+                            // Use withAWS and s3Upload for each file
+                            withAWS(credentials: 'AWS_CREDENTIAL_ID', region: 'us-east-1') {
+                                filesToUpload.each { file ->
+                                    // Use '/' as a separator for file path
+                                    def relativePath = file.replace("\\", "/").replaceFirst('.+?/workspace/aws_cicdpipeline/', '')
+
+                                    echo "Uploading: $relativePath"
+
+                                    s3Upload(
+                                        bucket: 'cicdglue',
+                                        includePathPattern: relativePath,
+                                        workingDir: ''
+                                    )
+                                }
+                            }
+                        } else {
+                            error "No .py files found in the workspace."
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Add post-build actions or other configurations as needed
+}
