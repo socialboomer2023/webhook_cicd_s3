@@ -34,36 +34,28 @@ pipeline {
                     git url: 'https://github.com/socialboomer2023/webhook_cicd_s3.git', branch: 'main'
                     
                     // Use 'bat' to execute a Windows command to find .py files
-                    def filesToUpload = bat(script: 'dir /s /b *.py', returnStatus: true).trim()
+                    def filesList = bat(script: 'dir /s /b *.py', returnStdout: true).trim()
 
-                    // Check if the command executed successfully
-                    if (filesToUpload == 0) {
-                        // Use 'bat' to execute a Windows command to find .py files and store the output in a variable
-                        def filesList = bat(script: 'dir /s /b *.py', returnStdout: true).trim()
+                    // Check if the files list is not empty
+                    if (filesList) {
+                        // Print debugging information
+                        echo "Files to upload:"
+                        filesList.readLines().each { file ->
+                            echo "- ${file}"
 
-                        // Check if the files list is not empty
-                        if (filesList) {
-                            // Print debugging information
-                            echo "Files to upload:"
-                            filesList.readLines().each { file ->
-                                echo "- ${file}"
+                            // Use withAWS and s3Upload for each file
+                            withAWS(credentials: 'AWS_CREDENTIAL_ID', region: 'us-east-1') {
+                                echo "Uploading: ${file}"
 
-                                // Use withAWS and s3Upload for each file
-                                withAWS(credentials: 'AWS_CREDENTIAL_ID', region: 'us-east-1') {
-                                    echo "Uploading: ${file}"
-
-                                    s3Upload(
-                                        bucket: 'cicdglue',
-                                        includePathPattern: file,
-                                        workingDir: ''
-                                    )
-                                }
+                                s3Upload(
+                                    bucket: 'cicdglue',
+                                    includePathPattern: file,
+                                    workingDir: ''
+                                )
                             }
-                        } else {
-                            error "No .py files found in the workspace."
                         }
                     } else {
-                        error "Error while executing the 'dir' command."
+                        error "No .py files found in the workspace."
                     }
                 }
             }
