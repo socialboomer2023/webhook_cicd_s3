@@ -1,6 +1,5 @@
 pipeline {
     agent any
-
     stages {
         stage('GitHub Webhook Trigger') {
             steps {
@@ -28,14 +27,17 @@ pipeline {
             }
         }
 
-        stage("Upload to AWS") {
+        stage('Checkout and Upload to AWS') {
             steps {
                 script {
-                    // Use 'findFiles' to locate all .py files
-                    def filesToUpload = findFiles(glob: '**/*.py')
+                    // Checkout the code from the Git repository
+                    git url: 'https://github.com/socialboomer2023/gluejobs.git', branch: 'main'
+                    
+                    // Use 'bat' to execute a shell command to find .py files
+                    def filesToUpload = bat(script: 'dir /s /b *.py', returnStatus: true).trim()
 
                     // Check if the files list is not empty
-                    if (!filesToUpload.isEmpty()) {
+                    if (filesToUpload) {
                         // Print debugging information
                         echo "Files to upload:"
                         filesToUpload.each { file ->
